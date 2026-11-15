@@ -114,6 +114,22 @@ test('handles malformed JSON and remains available for later requests', async (t
   assert.equal(todos[0].title, 'Still works');
 });
 
+test('serves a browser todo list backed by localStorage from the root route', async (t) => {
+  const server = await startTestServer();
+  t.after(() => server.close());
+
+  const response = await fetch(`${server.baseUrl}/`);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /text\/html/);
+
+  const page = await response.text();
+  assert.match(page, /قائمة المهام/);
+  assert.match(page, /localStorage\.setItem/);
+  assert.match(page, /localStorage\.getItem/);
+  assert.match(page, /todo-form/);
+  assert.doesNotMatch(page, /href="\/todos"/);
+});
+
 test('returns a structured 404 for unknown routes', async (t) => {
   const server = await startTestServer();
   t.after(() => server.close());

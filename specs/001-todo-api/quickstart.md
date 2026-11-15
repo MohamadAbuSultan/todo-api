@@ -30,7 +30,10 @@
 
 ## API Endpoints
 
-The API provides two endpoints for managing to-do items:
+Open `http://localhost:3000/` in a browser to use the to-do list.
+The browser page saves its items in that browser's localStorage; this data is
+separate from the API data returned by `GET /todos`.
+The API provides the following endpoints for managing to-do items:
 
 ### POST /todos
 Create a new to-do item

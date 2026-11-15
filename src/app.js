@@ -1,6 +1,7 @@
 'use strict';
 
 const express = require('express');
+const path = require('node:path');
 const { createTodoRouter } = require('./api/todo.routes');
 const { TodoService } = require('./services/todo.service');
 
@@ -21,6 +22,8 @@ function createApp({ todoService = new TodoService(), logger = console } = {}) {
   });
 
   app.use(express.json());
+
+  app.use(express.static(path.join(__dirname, '../public')));
 
   app.use(createTodoRouter({ service: todoService, logger }));
 

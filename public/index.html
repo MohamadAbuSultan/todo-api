@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>قائمة المهام</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 48px 20px;
+        background: #f3f5f9;
+        color: #202938;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 620px;
+        margin: auto;
+        padding: 28px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 8px 30px #15223812;
+      }
+      h1 {
+        margin: 0 0 6px;
+      }
+      .hint,
+      footer {
+        color: #697586;
+      }
+      form {
+        display: flex;
+        gap: 8px;
+        margin: 24px 0;
+      }
+      input[type='text'] {
+        flex: 1;
+        min-width: 0;
+        padding: 10px 12px;
+        border: 1px solid #cbd2dc;
+        border-radius: 8px;
+        font: inherit;
+      }
+      button {
+        padding: 9px 14px;
+        border: 0;
+        border-radius: 8px;
+        background: #315ecb;
+        color: white;
+        font: inherit;
+        cursor: pointer;
+      }
+      button.delete {
+        background: #b42318;
+      }
+      ul {
+        padding: 0;
+        list-style: none;
+      }
+      li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 0;
+        border-bottom: 1px solid #e8ebf0;
+      }
+      li span {
+        flex: 1;
+        overflow-wrap: anywhere;
+      }
+      li.completed span {
+        color: #697586;
+        text-decoration: line-through;
+      }
+      .empty {
+        color: #697586;
+      }
+      #message {
+        min-height: 1.5em;
+        color: #b42318;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>قائمة المهام</h1>
+      <p class="hint">تُحفظ مهامك في هذا المتصفح باستخدام Local Storage.</p>
+      <form id="todo-form">
+        <input id="todo-title" type="text" placeholder="اكتب مهمة جديدة" required />
+        <button type="submit">إضافة</button>
+      </form>
+      <p id="message" role="status" aria-live="polite"></p>
+      <ul id="todo-list"></ul>
+    </main>
+    <script>
+      const STORAGE_KEY = 'todos';
+      const form = document.querySelector('#todo-form');
+      const titleInput = document.querySelector('#todo-title');
+      const list = document.querySelector('#todo-list');
+      const message = document.querySelector('#message');
+      let todos = [];
+
+      function saveTodos(nextTodos) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextTodos));
+        todos = nextTodos;
+      }
+
+      function renderTodos() {
+        list.replaceChildren();
+
+        if (todos.length === 0) {
+          const emptyItem = document.createElement('li');
+          emptyItem.className = 'empty';
+          emptyItem.textContent = 'لا توجد مهام بعد. أضف مهمتك الأولى!';
+          list.append(emptyItem);
+          return;
+        }
+
+        for (const todo of todos) {
+          const item = document.createElement('li');
+          item.classList.toggle('completed', todo.completed);
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = todo.completed;
+          checkbox.setAttribute('aria-label', `تحديد ${todo.title} كمكتملة`);
+          checkbox.addEventListener('change', () => {
+            updateTodos(
+              todos.map((current) =>
+                current.id === todo.id ? { ...current, completed: checkbox.checked } : current
+              )
+            );
+          });
+
+          const title = document.createElement('span');
+          title.textContent = todo.title;
+
+          const deleteButton = document.createElement('button');
+          deleteButton.type = 'button';
+          deleteButton.className = 'delete';
+          deleteButton.textContent = 'حذف';
+          deleteButton.addEventListener('click', () => {
+            updateTodos(todos.filter((current) => current.id !== todo.id));
+          });
+
+          item.append(checkbox, title, deleteButton);
+          list.append(item);
+        }
+      }
+
+      function updateTodos(nextTodos) {
+        try {
+          saveTodos(nextTodos);
+          message.textContent = '';
+          renderTodos();
+          return true;
+        } catch (error) {
+          message.textContent = 'تعذر حفظ التغييرات في Local Storage.';
+          renderTodos();
+          return false;
+        }
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const title = titleInput.value.trim();
+
+        if (!title) {
+          message.textContent = 'اكتب اسم المهمة أولاً.';
+          return;
+        }
+
+        if (updateTodos([...todos, { id: crypto.randomUUID(), title, completed: false }])) {
+          titleInput.value = '';
+          titleInput.focus();
+        }
+      });
+
+      try {
+        const storedTodos = localStorage.getItem(STORAGE_KEY);
+        todos = storedTodos ? JSON.parse(storedTodos) : [];
+
+        if (!Array.isArray(todos)) {
+          throw new Error('Stored todo data is not a list');
+        }
+
+        renderTodos();
+      } catch (error) {
+        message.textContent = 'تعذر قراءة المهام المحفوظة. تحقق من إعدادات تخزين المتصفح.';
+        form.querySelector('button').disabled = true;
+      }
+    </script>
+  </body>
+</html>
