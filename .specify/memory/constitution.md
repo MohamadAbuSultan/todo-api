@@ -1,50 +1,62 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# ToDo Application Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Documentation Accuracy
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Documentation MUST describe implemented behavior, not intended or aspirational behavior. Every
+endpoint, status code, persistence guarantee, and operational claim in specs, plans, contracts,
+checklists, and guides MUST be verifiable against the code and tests. Unsupported claims MUST be
+removed rather than deferred.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. Minimal Dependencies, No Build Step
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+The backend runs directly on Node.js with `node src/app.js`; the frontend is served as static
+files. Neither project requires a bundler, transpiler, or build script. New dependencies MUST
+justify their runtime value; a database or application-managed file storage is explicitly out of
+scope.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. Tested Observable Behavior
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+The documented API surface MUST be covered by the Node.js built-in test runner (`node --test`)
+through contract, integration, and unit tests. A task or document may be marked complete only
+after the relevant checks pass. Tests MUST verify existing behavior without changing it.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. Explicit Persistence and Failure Semantics
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+Backend data is held in process memory by default and is lost on restart. Optional persistence
+MUST be documented with the exact runtime flags it requires, and MUST be presented as an optional
+runtime capability, not a project-managed storage system. Storage read/write failures MUST be
+handled without failing an API request, and this behavior MUST be documented.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. API Contract Independent of Auxiliary Demos
+
+The REST API is the core backend contract. The browser page served by the backend and the
+separately deployed `ToDo2` frontend are auxiliary demos with their own localStorage; they MUST
+NOT be treated as part of the API contract or as evidence of API behavior.
+
+## Technical Constraints
+
+- Backend: Node.js 18+, Express 4, `uuid`; CommonJS; `node:test` / `node:assert`; ESLint and Prettier.
+- Frontend: vanilla HTML/CSS/JS, no build tool, no external runtime dependencies.
+- Not implemented and not documented as available: database, application file storage,
+  authentication, health checks, performance monitoring, file logging, rate limiting, CORS, and
+  input-sanitization layers.
+
+## Development Workflow and Quality Gates
+
+1. Run `cd ToDo1 && npm install` before local work; no build step exists or is required.
+2. Run `npm test`, `npm run lint`, and `npm run format:check` from `ToDo1/` before declaring work
+   complete.
+3. Update the feature spec, plan, data model, contract, and quickstart in the same change as any
+   behavior change.
+4. Keep `tasks.md` statuses tied to verified work, not to the act of rewriting the task list.
+5. Do not commit or push without explicit approval.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes ad-hoc conventions in this repository. Amendments MUST update the
+version and amendment date, and MUST remove any documentation that contradicts them. Complexity
+beyond these principles MUST be justified in the implementation plan before it is introduced.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-11-22 | **Last Amended**: 2026-11-22

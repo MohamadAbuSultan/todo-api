@@ -5,18 +5,88 @@
 Check out the live demo here:
 👉 **[View Live Site](https://mohamadabusultan.github.io/todo-api/)**
 
+This demo is the **frontend only**: it is the static `ToDo2/` app deployed via GitHub Pages, which
+runs entirely in the browser and does not call the backend API. The `ToDo1/` backend is not
+deployed. See [Backend (ToDo1)](#backend-todo1) for local API setup.
+
 ---
 
 ### Overview
 - **ToDo2 (Frontend)**: Lightweight To-Do web app deployed via GitHub Pages.
 - **ToDo1 (Backend)**: REST API built with Node.js and Express.
 
+## Backend (ToDo1)
+
+The backend is a small Node.js/Express REST API in `ToDo1/`. Its behavior is specified in
+[`ToDo1/specs/001-todo-api/spec.md`](ToDo1/specs/001-todo-api/spec.md), with an OpenAPI contract in
+[`ToDo1/specs/001-todo-api/contracts/todo-api.json`](ToDo1/specs/001-todo-api/contracts/todo-api.json)
+and runnable scenarios in [`quickstart.md`](ToDo1/specs/001-todo-api/quickstart.md).
+
+### Setup and run
+
+```bash
+cd ToDo1
+npm install
+npm start              # http://localhost:3000
+PORT=4000 npm start    # optional port override
+```
+
+There is no build step: `npm start` runs `node src/app.js` directly.
+
+### Tests and checks
+
+```bash
+cd ToDo1
+npm test
+npm run lint
+npm run format:check
+```
+
+### Endpoint summary
+
+| Method | Path | Success | Error cases |
+| --- | --- | --- | --- |
+| GET | `/todos` | 200 — array in creation order (`[]` when empty) | — |
+| POST | `/todos` | 201 — created `{ "id", "title" }` | 400 for missing, blank, or non-text title; malformed JSON; JSON primitive; non-object body |
+| PATCH | `/todos/{id}` | 200 — updated `{ "id", "title" }` (title is required, id preserved) | 400 for invalid title or body; 404 for unknown id |
+| DELETE | `/todos/{id}` | 200 — the deleted `{ "id", "title" }`; no request body | 404 for unknown id |
+
+Errors use `{ "error": "message" }`. Methods without a route (for example `PUT /todos`) return 404
+with `{ "error": "Not found" }`, not 405. Identifiers are opaque strings (UUID v4 by default) and
+are not UUID-validated on input; an unknown id returns 404.
+
+### Persistence caveat
+
+By default the API is **memory only**: restarting the process clears all items. Optional persistence
+uses Node.js Web Storage and requires a Node release with the experimental flags (verified on Node
+v24.21.0):
+
+```bash
+cd ToDo1
+node --experimental-webstorage --localstorage-file=/tmp/todo-api-localstorage.json src/app.js
+```
+
+**Both flags are required** — with `--experimental-webstorage` alone, accessing `localStorage`
+throws and the service stays memory-only; Node 18 has neither flag. The file is created and managed
+by the Node runtime, not by the application; choose a path outside version control. Storage
+failures log a warning and never fail an API request: invalid stored entries are skipped, corrupt
+stored JSON starts from an empty list, and a failed write leaves the in-memory change in place.
+
+The page served at `/` is an auxiliary browser demo that keeps its own data in the browser's
+localStorage and makes no API calls. The live demo linked above is the separate `ToDo2` frontend.
+
+Not implemented (and not documented as available): a database, application file storage, a build
+step, file logging, health checks, performance monitoring, a sanitization layer, authentication,
+rate limiting, and CORS configuration.
+
 ## Review Issues and Fixes
 
 This is a short record of review work. The frontend review is complete and its checks were
 actually executed; the recorded results live in
 [`ToDo2/specs/001-todo-list/quickstart.md`](ToDo2/specs/001-todo-list/quickstart.md) under
-**Verification Record**. The backend items below are still open.
+**Verification Record**. The backend review is complete as well; its recorded results live in
+[`ToDo1/specs/001-todo-api/quickstart.md`](ToDo1/specs/001-todo-api/quickstart.md) under
+**Verification Record**.
 
 ### Completed
 
@@ -127,11 +197,25 @@ and are recorded separately from the 36.
   requires, or the `SCHEMA_VERSION` / `migrateStoredTask` migration seam that `plan.md` G2
   requires. Fix: T034 now explicitly excludes both from "dead code".
 
-### Pending (not fixed yet)
+### Backend review — fixed and verified (2026-11-22)
 
-- Problem: The backend specs do not fully describe the API endpoints and persistence behavior. Planned fix: Update the specs to match the implementation.
-- Problem: The root Spec Kit constitution still has template placeholders. Planned fix: Replace them with project-specific content.
-- Problem: Some backend plan details and technical references are outdated. Planned fix: Review and update them.
+- Problem: The backend docs described only GET/POST and denied update, delete, and persistence. Fix:
+  `ToDo1/specs/001-todo-api/` spec, data model, plan, contract, quickstart, and checklist now match
+  the four implemented endpoints, opaque-id handling, and persistence/failure behavior.
+- Problem: `tasks.md` contained `TXXX` placeholders, wrong paths, and unsupported claims (build
+  step, generated logs, sanitization, monitoring, health checks). Fix: rebuilt with real task IDs,
+  verified statuses, and traceability to actual files.
+- Problem: The root Spec Kit feature pointer targeted a nonexistent directory. Fix:
+  `.specify/feature.json` now points to `ToDo1/specs/001-todo-api`.
+- Problem: The root constitution was entirely template placeholders. Fix: replaced with concise
+  project principles, constraints, and quality gates.
+- Problem: The package description named only in-memory storage and `todo.routes.js` failed the
+  format check on a trailing blank line. Fix: description now mentions optional Web Storage
+  persistence; the blank line was removed with no behavior change.
+- Problem: Documented behavior had no automated witness for non-object bodies, unsupported methods,
+  or the PATCH/DELETE contract shapes. Fix: five tests added; 50 pass.
+- Verification: `cd ToDo1 && npm test` (50 pass, 0 fail), `npm run lint` (clean),
+  `npm run format:check` (clean); spec-kit prerequisite check resolves the backend feature directory.
 
 ### Partially verified (frontend)
 

@@ -90,4 +90,3 @@ function createTodoRouter({ service = new TodoService(), logger = console } = {}
 }
 
 module.exports = { createTodoRouter };
-
