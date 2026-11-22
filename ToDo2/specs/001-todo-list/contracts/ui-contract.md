@@ -35,9 +35,9 @@ No element may use inline event-handler attributes (`onclick`, etc.).
 | Type in input and submit via Add | Trim input; if empty, create nothing and keep focus in input; otherwise append task, persist, render, clear input, keep focus in input |
 | Press Enter in input | Same as activating Add (native form submit) |
 | Submit whitespace-only input | No task created, no persistence write, list unchanged |
-| Check a task checkbox | That task becomes completed, persisted, rendered with strikethrough |
-| Uncheck a completed checkbox | That task becomes active, persisted, strikethrough removed |
-| Click a delete button | Only that task is removed, persisted, list re-rendered |
+| Check a task checkbox | That task becomes completed, persisted, rendered with strikethrough; focus returns to that task's checkbox |
+| Uncheck a completed checkbox | That task becomes active, persisted, strikethrough removed; focus returns to that task's checkbox |
+| Click a delete button | Only that task is removed, persisted, list re-rendered; focus moves to the row at the deleted index, or the task input when the list is empty |
 | Delete the last task | List empties, empty state becomes visible |
 | Reload page | Tasks restored from storage with original order and completion states |
 
@@ -73,8 +73,11 @@ No element may use inline event-handler attributes (`onclick`, etc.).
 - All controls reachable and operable with keyboard alone: Tab order is input → Add → per-row
   checkbox → per-row Delete.
 - Native checkbox and buttons provide Enter/Space activation.
-- After deleting a task, focus moves to the next task's Delete control when one remains;
-  otherwise it moves to the task input.
+- After deleting a task, focus moves to the row that now occupies the deleted row's index: the
+  following task's Delete control when one exists, otherwise the new last task's Delete control.
+  Focus moves to the task input only when no tasks remain.
+- After toggling completion, the list is rebuilt and focus is restored to the same task's
+  checkbox, so the keyboard focus ring and the operator's position are preserved.
 - Status messages use `role="status"` so they are announced without stealing focus.
 - No instruction depends on color alone; completion is conveyed by both strikethrough and the
   checkbox state.

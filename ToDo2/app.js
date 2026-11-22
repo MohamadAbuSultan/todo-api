@@ -429,7 +429,38 @@ function handleSubmit(event) {
 }
 
 /**
+ * Restore keyboard focus to a row's checkbox after the list is re-rendered.
+ *
+ * A full re-render replaces every row element, so the browser drops focus to
+ * the document body. This looks the row up by task id and re-focuses its
+ * checkbox, keeping keyboard users on the control they just operated.
+ *
+ * @param {string} id Task identity whose checkbox should receive focus.
+ * @returns {void}
+ */
+function focusTaskCheckbox(id) {
+  if (!id) {
+    return;
+  }
+
+  // The id may come from restored storage, so it is escaped before being used
+  // in a selector; an unescaped id could otherwise throw a SyntaxError.
+  const row = state.dom.list?.querySelector(
+    `li.task[data-task-id="${CSS.escape(id)}"]`
+  );
+  const checkbox = row?.querySelector('.task-checkbox');
+
+  if (checkbox instanceof HTMLInputElement) {
+    checkbox.focus();
+  }
+}
+
+/**
  * Handle completion toggles delegated from the task list.
+ *
+ * The list is rebuilt after the toggle, so the checkbox that fired the event
+ * is replaced. Focus is restored to the same row's checkbox to keep keyboard
+ * users in place.
  *
  * @param {Event} event Change event from a row checkbox.
  * @returns {void}
@@ -452,14 +483,16 @@ function handleToggle(event) {
 
   persist();
   render(state.tasks);
+  focusTaskCheckbox(id);
 }
 
 /**
  * Handle deletes delegated from the task list.
  *
- * After rendering, focus moves to the next remaining row's delete control, or
- * to the task input when the list is now empty, so keyboard users keep their
- * place.
+ * After rendering, focus moves to the row that now occupies the deleted row's
+ * index: the following task when one exists, otherwise the new last task.
+ * When the list becomes empty, focus moves to the task input. This keeps
+ * keyboard users in place after a deletion.
  *
  * @param {Event} event Click event from a row delete control.
  * @returns {void}
