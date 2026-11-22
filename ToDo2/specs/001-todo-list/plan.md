@@ -2,16 +2,17 @@
 
 **Branch**: `001-todo-list` | **Date**: 2026-11-16 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `/specs/001-todo-list/spec.md`
+**Input**: Feature specification from `ToDo2/specs/001-todo-list/spec.md`
 
 ## Summary
 
-Deliver a single-page to-do list as three root-level static files: `index.html`, `style.css`,
-and `app.js`. Users add, view, complete/uncomplete, and delete tasks; every mutation is
+Deliver a single-page to-do list as three static files inside the frontend project root
+`ToDo2/`: `index.html`, `style.css`, and `app.js`. Users add, view, complete/uncomplete,
+and delete tasks; every mutation is
 persisted automatically to the Local Storage key `todo_app_tasks` as a JSON array of
 `{ id, text, completed }` objects. A friendly empty state appears when no tasks exist.
 
-The technical approach is a single native ES module (`app.js`) loaded with
+The technical approach is a single native ES module (`ToDo2/app.js`) loaded with
 `<script type="module">`, organized internally into clearly separated persistence, state,
 domain, rendering, and event-wiring sections. Rendering rebuilds the list from state using
 `document.createElement` and `textContent` only. No libraries, no build step, no network
@@ -30,15 +31,17 @@ objects `{ id: string, text: string, completed: boolean }`
 [quickstart.md](./quickstart.md), including reload-persistence and cold-start checks
 
 **Target Platform**: Modern evergreen desktop and mobile browsers with JavaScript and Local
-Storage enabled; served as static files (for example, `python3 -m http.server`)
+Storage enabled; served as static files from `ToDo2/` (for example,
+`cd ToDo2 && python3 -m http.server 8000`)
 
 **Project Type**: Static client-side web application (single project)
 
 **Performance Goals**: Full list render in under 1 second with 100 tasks; interactions feel
 immediate (well under 100 ms of script work for typical lists)
 
-**Constraints**: Three files in the repository root; no build pipeline; no external runtime
-code or assets; no network transmission of user data; all DOM writes use safe text insertion
+**Constraints**: Three files in `ToDo2/` (the frontend project root); no build pipeline; no
+external runtime code or assets; no network transmission of user data; all DOM writes use safe
+text insertion
 
 **Scale/Scope**: One local user, one task list, roughly 100–500 tasks, one screen, English UI
 
@@ -69,30 +72,38 @@ declared deliverables. No complexity justification is required.
 
 ### Documentation (this feature)
 
+All paths in this section are relative to the repository root.
+
 ```text
-specs/001-todo-list/
+ToDo2/specs/001-todo-list/
+├── spec.md              # Feature specification (input to this plan)
 ├── plan.md              # This file (/speckit.plan command output)
 ├── research.md          # Phase 0 output (/speckit.plan command)
 ├── data-model.md        # Phase 1 output (/speckit.plan command)
 ├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── checklists/          # Requirement checklists (/speckit.checklist command)
+│   └── requirements.md
 ├── contracts/           # Phase 1 output (/speckit.plan command)
 │   ├── storage-contract.md
 │   └── ui-contract.md
 └── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
-### Source Code (repository root)
+### Source Code (`ToDo2/`)
+
+All paths in this section are relative to the repository root.
 
 ```text
-index.html               # Semantic page shell, task form, list container, empty state, warning
-style.css                # All presentation: layout, task states, empty state, focus, responsive
-app.js                   # Single ES module: storage, state, domain, render, events, init
+ToDo2/
+├── index.html           # Semantic page shell, task form, list container, empty state, warning
+├── style.css            # All presentation: layout, task states, empty state, focus, responsive
+└── app.js               # Single ES module: storage, state, domain, render, events, init
 ```
 
-Internal layout of `app.js` (sections, not separate files):
+Internal layout of `ToDo2/app.js` (sections, not separate files):
 
 ```text
-app.js
+ToDo2/app.js
 ├── Constants          # STORAGE_KEY = 'todo_app_tasks', SCHEMA_VERSION = 1, selectors
 ├── Storage            # loadTasks(), saveTasks(tasks), parseTasks(raw)
 ├── State              # tasks array, persistenceAvailable flag
@@ -101,10 +112,12 @@ app.js
 └── Events / Init      # bindEvents(), init()
 ```
 
-**Structure Decision**: Single static web project at the repository root, exactly as required
-by the user. No `src/`, `backend/`, or `tests/` directories are created. The single ES module
-keeps the three-file contract while preserving the constitution's separation-of-concerns
-requirement through documented internal sections.
+**Structure Decision**: Single static web project in `ToDo2/`, the frontend project root,
+not the repository root. No `src/`, `backend/`, or `tests/` directories are created inside
+`ToDo2/`; `ToDo1/` remains a separate backend project. The static server must be started
+from `ToDo2/` so that `index.html`, `style.css`, and `app.js` are served from the site root.
+The single ES module keeps the three-file contract while preserving the constitution's
+separation-of-concerns requirement through documented internal sections.
 
 ## Complexity Tracking
 
