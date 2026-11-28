@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Minimal To-Do API",
-    "description": "A minimal Node.js and Express web service for managing to-do items",
+    "description": "A minimal Node.js and Express web service for managing to-do items. Items are held in process memory by default; optional Node.js Web Storage persistence requires experimental runtime flags (see quickstart.md). Methods without a defined route return 404, not 405.",
     "version": "1.0.0",
     "contact": {
       "name": "API Support"
@@ -83,15 +83,134 @@
             }
           },
           "400": {
-            "description": "Bad request - validation error",
+            "description": "Bad request - malformed JSON or a JSON primitive (Invalid JSON body), a JSON array that is not an object (Request body must be a JSON object), or a validation error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 },
-                "example": {
-                  "error": "Title is required"
+                "examples": {
+                  "missingTitle": {
+                    "value": { "error": "Title is required" }
+                  },
+                  "emptyTitle": {
+                    "value": { "error": "Title cannot be empty" }
+                  },
+                  "nonTextTitle": {
+                    "value": { "error": "Title must be a string" }
+                  },
+                  "arrayBody": {
+                    "value": { "error": "Request body must be a JSON object" }
+                  },
+                  "primitiveOrMalformedJson": {
+                    "value": { "error": "Invalid JSON body" }
+                  }
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/todos/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Opaque item identifier. Generated as UUID v4 by default but not validated as a UUID on input; an unknown id returns 404.",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "patch": {
+        "summary": "Replace the title of an existing to-do item",
+        "description": "The title field is required; PATCH does not support partial updates or other fields. The identifier is preserved and the updated item is returned.",
+        "operationId": "updateTodo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "The replacement title"
+                  }
+                },
+                "required": ["title"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "To-do item updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoItem"
+                },
+                "example": {
+                  "id": "550e8400-e29b-41d4-a716-446655440000",
+                  "title": "Buy groceries and cook dinner"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - malformed JSON or a JSON primitive, a JSON array that is not an object, or a validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": { "error": "Title is required" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - no item has the requested identifier",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": { "error": "Todo not found" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete an existing to-do item",
+        "description": "Returns the deleted item with status 200. No request body is used.",
+        "operationId": "deleteTodo",
+        "responses": {
+          "200": {
+            "description": "To-do item deleted successfully; the deleted item is returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoItem"
+                },
+                "example": {
+                  "id": "550e8400-e29b-41d4-a716-446655440000",
+                  "title": "Buy groceries"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - no item has the requested identifier",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": { "error": "Todo not found" }
               }
             }
           }
@@ -106,12 +225,11 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid",
-            "description": "Unique identifier for the to-do item"
+            "description": "Opaque identifier; generated as UUID v4 by default, not validated on input"
           },
           "title": {
             "type": "string",
-            "description": "Title of the to-do item"
+            "description": "Trimmed title of the to-do item"
           }
         },
         "required": ["id", "title"]

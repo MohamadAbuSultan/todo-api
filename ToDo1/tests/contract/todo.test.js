@@ -7,9 +7,15 @@ const { startTestServer } = require('../helpers/server');
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-test('the OpenAPI contract documents the GET and POST /todos operations', () => {
+test('the OpenAPI contract documents all four /todos operations', () => {
   assert.ok(contract.paths['/todos'].get);
   assert.ok(contract.paths['/todos'].post);
+  assert.ok(contract.paths['/todos/{id}'].patch);
+  assert.ok(contract.paths['/todos/{id}'].delete);
+  assert.deepEqual(
+    contract.paths['/todos/{id}'].parameters.map((parameter) => parameter.name),
+    ['id']
+  );
   assert.deepEqual(contract.components.schemas.TodoItem.required, ['id', 'title']);
 });
 
@@ -67,4 +73,68 @@ test('POST /todos returns the documented 400 Error shape', async (t) => {
   const error = await response.json();
   assert.deepEqual(Object.keys(error), ['error']);
   assert.equal(typeof error.error, 'string');
+});
+
+test('PATCH /todos/{id} returns the documented 200 TodoItem shape', async (t) => {
+  const server = await startTestServer();
+  t.after(() => server.close());
+
+  const createResponse = await fetch(`${server.baseUrl}/todos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Before' }),
+  });
+  const created = await createResponse.json();
+
+  const response = await fetch(`${server.baseUrl}/todos/${created.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'After' }),
+  });
+
+  assert.equal(response.status, 200);
+
+  const todo = await response.json();
+  assert.deepEqual(Object.keys(todo).sort(), ['id', 'title']);
+  assert.equal(todo.id, created.id);
+  assert.equal(todo.title, 'After');
+});
+
+test('DELETE /todos/{id} returns the documented 200 TodoItem shape', async (t) => {
+  const server = await startTestServer();
+  t.after(() => server.close());
+
+  const createResponse = await fetch(`${server.baseUrl}/todos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Remove me' }),
+  });
+  const created = await createResponse.json();
+
+  const response = await fetch(`${server.baseUrl}/todos/${created.id}`, { method: 'DELETE' });
+
+  assert.equal(response.status, 200);
+
+  const todo = await response.json();
+  assert.deepEqual(Object.keys(todo).sort(), ['id', 'title']);
+  assert.deepEqual(todo, created);
+});
+
+test('PATCH and DELETE return the documented 404 Error shape', async (t) => {
+  const server = await startTestServer();
+  t.after(() => server.close());
+
+  for (const method of ['PATCH', 'DELETE']) {
+    const response = await fetch(`${server.baseUrl}/todos/missing`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: method === 'PATCH' ? JSON.stringify({ title: 'Nope' }) : undefined,
+    });
+
+    assert.equal(response.status, 404);
+
+    const error = await response.json();
+    assert.deepEqual(Object.keys(error), ['error']);
+    assert.equal(error.error, 'Todo not found');
+  }
 });

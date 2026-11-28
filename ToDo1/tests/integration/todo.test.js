@@ -138,3 +138,38 @@ test('returns a structured 404 for unknown routes', async (t) => {
   assert.equal(response.status, 404);
   assert.deepEqual(await response.json(), { error: 'Not found' });
 });
+
+test('rejects non-object JSON bodies without storing items', async (t) => {
+  const server = await startTestServer();
+  t.after(() => server.close());
+
+  for (const [body, message] of [
+    ['[]', 'Request body must be a JSON object'],
+    ['"a string"', 'Invalid JSON body'],
+  ]) {
+    const response = await fetch(`${server.baseUrl}/todos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: message });
+  }
+
+  assert.deepEqual(await (await fetch(`${server.baseUrl}/todos`)).json(), []);
+});
+
+test('returns a structured 404 for methods without a route', async (t) => {
+  const server = await startTestServer();
+  t.after(() => server.close());
+
+  for (const [method, path] of [
+    ['PUT', '/todos'],
+    ['PUT', '/todos/missing'],
+    ['DELETE', '/todos'],
+  ]) {
+    const response = await fetch(`${server.baseUrl}${path}`, { method });
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { error: 'Not found' });
+  }
+});
