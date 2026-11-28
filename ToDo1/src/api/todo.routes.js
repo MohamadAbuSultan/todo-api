@@ -1,15 +1,17 @@
 'use strict';
 
 const express = require('express');
-const { TodoService } = require('../services/todo.service');
-const { validateTitle } = require('../utils/validation');
 
 /**
  * Build the router for the /todos endpoints.
- * @param {{ service?: TodoService, logger?: Console }} [options]
+ * @param {{ service: import('../services/todo.service').TodoService, logger?: Console }} options
  * @returns {import('express').Router}
  */
-function createTodoRouter({ service = new TodoService(), logger = console } = {}) {
+function createTodoRouter({ service, logger = console } = {}) {
+  if (!service) {
+    throw new Error('createTodoRouter requires a TodoService instance');
+  }
+
   const router = express.Router();
 
   /**
@@ -29,7 +31,7 @@ function createTodoRouter({ service = new TodoService(), logger = console } = {}
     return body;
   }
 
-  router.post('/todos', (req, res, next) => {
+  router.post('/todos', async (req, res, next) => {
     try {
       const body = getRequestBody(req, res);
 
@@ -37,8 +39,7 @@ function createTodoRouter({ service = new TodoService(), logger = console } = {}
         return;
       }
 
-      const title = validateTitle(body.title);
-      const todo = service.create(title);
+      const todo = await service.create(body.title);
 
       logger.info(`Created todo ${todo.id}: "${todo.title}"`);
       return res.status(201).json(todo);
@@ -47,9 +48,9 @@ function createTodoRouter({ service = new TodoService(), logger = console } = {}
     }
   });
 
-  router.get('/todos', (req, res, next) => {
+  router.get('/todos', async (req, res, next) => {
     try {
-      const todos = service.getAll();
+      const todos = await service.getAll();
       logger.info(`Retrieved ${todos.length} todo(s)`);
       return res.status(200).json(todos);
     } catch (error) {
@@ -57,7 +58,7 @@ function createTodoRouter({ service = new TodoService(), logger = console } = {}
     }
   });
 
-  router.patch('/todos/:id', (req, res, next) => {
+  router.patch('/todos/:id', async (req, res, next) => {
     try {
       const body = getRequestBody(req, res);
 
@@ -65,8 +66,7 @@ function createTodoRouter({ service = new TodoService(), logger = console } = {}
         return;
       }
 
-      const title = validateTitle(body.title);
-      const todo = service.update(req.params.id, title);
+      const todo = await service.update(req.params.id, body);
 
       logger.info(`Updated todo ${todo.id}: "${todo.title}"`);
       return res.status(200).json(todo);
@@ -75,9 +75,9 @@ function createTodoRouter({ service = new TodoService(), logger = console } = {}
     }
   });
 
-  router.delete('/todos/:id', (req, res, next) => {
+  router.delete('/todos/:id', async (req, res, next) => {
     try {
-      const todo = service.remove(req.params.id);
+      const todo = await service.remove(req.params.id);
 
       logger.info(`Deleted todo ${todo.id}: "${todo.title}"`);
       return res.status(200).json(todo);

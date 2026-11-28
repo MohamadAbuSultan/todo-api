@@ -3,14 +3,26 @@
 const express = require('express');
 const path = require('node:path');
 const { createTodoRouter } = require('./api/todo.routes');
+const { LocalStorageTodoRepository } = require('./repositories/local-storage-todo-repository');
 const { TodoService } = require('./services/todo.service');
+
+/**
+ * Build the service used when the caller does not inject one.
+ * The Web Storage repository keeps the items in memory and writes them
+ * through to storage when the runtime provides and is configured for it, so
+ * a plain start stays memory-only and a configured start restores the items.
+ * @returns {TodoService}
+ */
+function createDefaultTodoService() {
+  return new TodoService({ repository: new LocalStorageTodoRepository() });
+}
 
 /**
  * Create a configured Express application.
  * @param {{ todoService?: TodoService, logger?: Console }} [options]
  * @returns {{ app: import('express').Express, todoService: TodoService }}
  */
-function createApp({ todoService = new TodoService(), logger = console } = {}) {
+function createApp({ todoService = createDefaultTodoService(), logger = console } = {}) {
   const app = express();
 
   app.disable('x-powered-by');

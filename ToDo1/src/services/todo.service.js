@@ -2,163 +2,116 @@
 
 const { v4: uuidv4 } = require('uuid');
 const { TodoItem } = require('../models/todo-item');
-const { LocalStorageStore, isStorageLike } = require('../storage/local-storage');
-const { validationError } = require('../utils/validation');
+const { isTodoRepository } = require('../repositories/todo.repository');
+const { validateTitle, validationError } = require('../utils/validation');
 
 /**
- * Build the persistence adapter used by the service.
- * Existing storage-like objects (with getItem/setItem) are wrapped so callers
- * can provide the browser localStorage, a test double, or a custom store.
- * @param {{
- *   storage?: object | null,
- *   storageKey?: string,
- *   logger?: Console
- * }} options
- * @returns {object | null}
+ * Fields an update may change. Anything else is ignored by the service; the
+ * repository applies the same whitelist again when it writes the change.
+ * @type {string[]}
  */
-function createStorageAdapter({ storage, storageKey, logger }) {
-  if (storage && typeof storage.load === 'function' && typeof storage.save === 'function') {
-    return storage;
+const ALLOWED_UPDATE_FIELDS = ['title'];
+
+/**
+ * Keep only the fields an update is allowed to change.
+ * @param {unknown} changes
+ * @returns {object}
+ */
+function pickAllowedFields(changes) {
+  const picked = {};
+
+  if (!changes || typeof changes !== 'object') {
+    return picked;
   }
 
-  if (storage === undefined || storage === null || isStorageLike(storage)) {
-    return new LocalStorageStore({ key: storageKey, storage, logger });
+  for (const field of ALLOWED_UPDATE_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(changes, field)) {
+      picked[field] = changes[field];
+    }
   }
 
-  return storage;
+  return picked;
 }
 
 /**
- * Business logic and persistent storage for to-do items.
+ * Business logic for to-do items.
+ *
+ * The service owns validation and business rules and delegates every read and
+ * write to an injected repository. It never keeps its own copy of the stored
+ * collection.
  */
 class TodoService {
   /**
    * @param {{
    *   idGenerator?: () => string,
-   *   storage?: object | Storage | null,
-   *   storageKey?: string,
-   *   logger?: Console
-   * }} [options]
+   *   repository: import('../repositories/todo.repository').TodoRepository
+   * }} options
    */
-  constructor({ idGenerator = uuidv4, storage, storageKey, logger = console } = {}) {
+  constructor({ idGenerator = uuidv4, repository } = {}) {
+    if (!isTodoRepository(repository)) {
+      throw new Error(
+        'TodoService requires a repository implementing create, findAll, update, and remove'
+      );
+    }
+
     this.idGenerator = idGenerator;
-    this.logger = logger;
-    this.storage = createStorageAdapter({ storage, storageKey, logger });
-    /** @type {TodoItem[]} */
-    this.todos = this.load();
-  }
-
-  /**
-   * Load and validate previously persisted items.
-   * Invalid entries are skipped rather than preventing startup.
-   * @returns {TodoItem[]}
-   */
-  load() {
-    if (!this.storage || typeof this.storage.load !== 'function') {
-      return [];
-    }
-
-    const storedItems = this.storage.load();
-    const todos = [];
-
-    for (const storedItem of storedItems) {
-      try {
-        if (!storedItem || typeof storedItem !== 'object') {
-          throw new Error('Stored item must be an object');
-        }
-
-        if (typeof storedItem.id !== 'string' || storedItem.id === '') {
-          throw new Error('Stored item id must be a non-empty string');
-        }
-
-        todos.push(new TodoItem(storedItem.id, storedItem.title));
-      } catch (error) {
-        if (this.logger && typeof this.logger.warn === 'function') {
-          this.logger.warn(`Skipping invalid stored todo: ${error.message}`);
-        }
-      }
-    }
-
-    return todos;
-  }
-
-  /**
-   * Persist the current collection. Write failures do not interrupt the
-   * in-memory operations.
-   * @returns {boolean}
-   */
-  persist() {
-    if (!this.storage || typeof this.storage.save !== 'function') {
-      return false;
-    }
-
-    return this.storage.save(this.todos.map((todo) => todo.toJSON()));
+    this.repository = repository;
   }
 
   /**
    * Create and store a new to-do item.
    * @param {unknown} title
-   * @returns {{ id: string, title: string }}
+   * @returns {Promise<{ id: string, title: string }>}
    */
-  create(title) {
-    const todo = new TodoItem(this.idGenerator(), title);
-    this.todos.push(todo);
-    this.persist();
-    return todo.toJSON();
+  async create(title) {
+    const validatedTitle = validateTitle(title);
+    const todo = new TodoItem(this.idGenerator(), validatedTitle);
+
+    return this.repository.create(todo.toJSON());
   }
 
   /**
    * Return all stored to-do items in creation order.
-   * @returns {Array<{ id: string, title: string }>}
+   * @returns {Promise<Array<{ id: string, title: string }>>}
    */
-  getAll() {
-    return this.todos.map((todo) => todo.toJSON());
+  async getAll() {
+    return this.repository.findAll();
   }
 
   /**
-   * Update the title of an existing item.
+   * Update an existing item.
+   * The title is validated before the item is looked up, so an invalid title
+   * is reported as a client error even when the identifier is unknown.
    * @param {string} id
-   * @param {unknown} title
-   * @returns {{ id: string, title: string }}
+   * @param {unknown} changes the fields to change
+   * @returns {Promise<{ id: string, title: string }>}
    */
-  update(id, title) {
-    const index = this.todos.findIndex((todo) => todo.id === id);
+  async update(id, changes) {
+    const fields = pickAllowedFields(changes);
+    const validatedTitle = validateTitle(fields.title);
+    const updated = await this.repository.update(id, { title: validatedTitle });
 
-    if (index === -1) {
+    if (!updated) {
       throw validationError('Todo not found', 404);
     }
 
-    const todo = new TodoItem(id, title);
-    this.todos[index] = todo;
-    this.persist();
-    return todo.toJSON();
+    return updated;
   }
 
   /**
    * Remove an existing item.
    * @param {string} id
-   * @returns {{ id: string, title: string }}
+   * @returns {Promise<{ id: string, title: string }>}
    */
-  remove(id) {
-    const index = this.todos.findIndex((todo) => todo.id === id);
+  async remove(id) {
+    const removed = await this.repository.remove(id);
 
-    if (index === -1) {
+    if (!removed) {
       throw validationError('Todo not found', 404);
     }
 
-    const [removed] = this.todos.splice(index, 1);
-    this.persist();
-    return removed.toJSON();
-  }
-
-  /**
-   * Remove all stored items (useful for tests).
-   * @returns {void}
-   */
-  clear() {
-    this.todos.length = 0;
-    this.persist();
+    return removed;
   }
 }
 
-module.exports = { TodoService, createStorageAdapter };
+module.exports = { TodoService, ALLOWED_UPDATE_FIELDS };
